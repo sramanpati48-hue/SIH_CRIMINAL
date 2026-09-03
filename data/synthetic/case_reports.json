@@ -1,0 +1,52 @@
+[
+  {
+    "report_id": "DOC001",
+    "case_id": "C001",
+    "text": "Surveillance report for case C001. Suspects were observed."
+  },
+  {
+    "report_id": "DOC002",
+    "case_id": "C002",
+    "text": "On 2026-08-08 at approximately 14:00, individuals P004, P005, and P006 were all observed holding a meeting at location LOC002."
+  },
+  {
+    "report_id": "DOC003",
+    "case_id": "C003",
+    "text": "Surveillance report for case C003. Suspects were observed."
+  },
+  {
+    "report_id": "DOC004",
+    "case_id": "C004",
+    "text": "Surveillance report for case C004. Suspects were observed."
+  },
+  {
+    "report_id": "DOC005",
+    "case_id": "C005",
+    "text": "Surveillance report for case C005. Suspects were observed."
+  },
+  {
+    "report_id": "DOC006",
+    "case_id": "C006",
+    "text": "Surveillance report for case C006. Suspects were observed."
+  },
+  {
+    "report_id": "DOC007",
+    "case_id": "C007",
+    "text": "Surveillance report for case C007. Suspects were observed."
+  },
+  {
+    "report_id": "DOC008",
+    "case_id": "C008",
+    "text": "Surveillance report for case C008. Suspects were observed."
+  },
+  {
+    "report_id": "DOC009",
+    "case_id": "C009",
+    "text": "Surveillance report for case C009. Suspects were observed."
+  },
+  {
+    "report_id": "DOC010",
+    "case_id": "C010",
+    "text": "Surveillance report for case C010. Suspects were observed."
+  }
+]

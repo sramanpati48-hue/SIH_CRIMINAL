@@ -1,0 +1,13 @@
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
+pythonpath = [
+    ".",
+    "apps/backend",
+]
+markers = [
+    "neo4j: Integration tests requiring a running Neo4j instance",
+]
