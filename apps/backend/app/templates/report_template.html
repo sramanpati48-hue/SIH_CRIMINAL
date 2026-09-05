@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+    <meta name="referrer" content="no-referrer">
+    <title>SIH 26189 — Investigation Support Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            color: #333;
+            line-height: 1.6;
+            margin: 40px auto;
+            max-width: 900px;
+            padding: 0 20px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .header {
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .disclaimer {
+            background-color: #fff3cd;
+            border-left: 5px solid #ffecb5;
+            padding: 15px;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            font-size: 0.9em;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 6px;
+            font-size: 0.8em;
+            background-color: #e9ecef;
+            border-radius: 3px;
+        }
+        .limitations {
+            background-color: #e2e3e5;
+            padding: 15px;
+            font-size: 0.85em;
+        }
+        .evidence-excerpt {
+            font-family: monospace;
+            background-color: #f8f9fa;
+            padding: 5px;
+            border: 1px dashed #ccc;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>SIH 26189 — Investigation Support Report</h1>
+        <p>
+            <strong>Report Generated:</strong> {{ report_generated_at }}<br>
+            <strong>Report Version:</strong> {{ report_version }}<br>
+            <strong>Case Number:</strong> {{ case_number }}<br>
+            <strong>Case Title:</strong> {{ title }}
+        </p>
+    </div>
+
+    <div class="disclaimer">
+        <strong>IMPORTANT DISCLAIMER:</strong> This is a prototype system running on synthetic data. 
+        All extracted entities, relationships, and alerts require human verification. 
+        This report provides investigative context and does not establish guilt, criminal probability, or confirmed wrongdoing.
+    </div>
+
+    <div class="section">
+        <h2>Case Overview</h2>
+        <table>
+            <tr>
+                <th>Case Number</th>
+                <td>{{ case_number }}</td>
+            </tr>
+            <tr>
+                <th>Title</th>
+                <td>{{ title }}</td>
+            </tr>
+            <tr>
+                <th>Status</th>
+                <td>{{ status }}</td>
+            </tr>
+            <tr>
+                <th>Priority</th>
+                <td>{{ priority }}</td>
+            </tr>
+            <tr>
+                <th>Created At</th>
+                <td>{{ created_at }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Verified Entities</h2>
+        {% if entities %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Display Name</th>
+                    <th>Normalized</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Confidence</th>
+                    <th>Source Ref</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entity in entities %}
+                <tr>
+                    <td>{{ entity.display_value }}</td>
+                    <td>{{ entity.normalized_value or "N/A" }}</td>
+                    <td>{{ entity.entity_type }}</td>
+                    <td><span class="badge">{{ entity.verification_status }}</span></td>
+                    <td>{{ entity.confidence if entity.confidence is not none else "N/A" }}</td>
+                    <td>{{ entity.source_document_id or entity.source_record_id or "N/A" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No verified entities found for this case.</p>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h2>Verified Relationships</h2>
+        {% if relationships %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Source Entity</th>
+                    <th>Type</th>
+                    <th>Target Entity</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Confidence</th>
+                    <th>Evidence Excerpt</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rel in relationships %}
+                <tr>
+                    <td>{{ rel.source_entity_display }}</td>
+                    <td>{{ rel.relationship_type }}</td>
+                    <td>{{ rel.target_entity_display }}</td>
+                    <td><span class="badge">{{ rel.verification_status }}</span></td>
+                    <td>{{ rel.event_date or "N/A" }}</td>
+                    <td>{{ rel.confidence if rel.confidence is not none else "N/A" }}</td>
+                    <td>
+                        {% if rel.evidence_available %}
+                            <div class="evidence-excerpt">{{ rel.bounded_evidence_excerpt }}</div>
+                            <small>Source: {{ rel.source_document_id or "N/A" }}</small>
+                        {% else %}
+                            <em>Evidence unavailable</em>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No verified relationships found for this case.</p>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <h2>Patterns and Analytical Context</h2>
+        {% if alerts %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Title / Type</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th>Explanation</th>
+                    <th>Versions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alert in alerts %}
+                <tr>
+                    <td>
+                        <strong>{{ alert.title }}</strong><br>
+                        <small>{{ alert.alert_type }}</small>
+                    </td>
+                    <td>{{ alert.severity }}</td>
+                    <td>
+                        <span class="badge">{{ alert.status }}</span>
+                        {% if alert.requires_human_verification %}
+                            <br><small>(Review Required)</small>
+                        {% endif %}
+                    </td>
+                    <td>{{ alert.explanation or "N/A" }}</td>
+                    <td>
+                        <small>Rule: {{ alert.rule_version or "N/A" }}</small><br>
+                        <small>Model: {{ alert.model_version or "N/A" }}</small>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No patterns or alerts identified for this case.</p>
+        {% endif %}
+    </div>
+
+    <div class="limitations">
+        <h3>System Limitations</h3>
+        <ul>
+            <li><strong>Synthetic Data:</strong> Data processed is entirely synthetic.</li>
+            <li><strong>Model Limitations:</strong> The extraction models may miss valid relationships or extract incorrect entities.</li>
+            <li><strong>Incomplete Evidence:</strong> Not all real-world context is available to the system.</li>
+            <li><strong>Human Review:</strong> Human oversight is required for all analytical outputs.</li>
+        </ul>
+    </div>
+
+</body>
+</html>

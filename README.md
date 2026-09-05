@@ -35,30 +35,26 @@ d:/Sih/
 ├── .env.example               # Root environment variable template
 ├── pyproject.toml             # Root Python project & Pytest configuration
 ├── docs/                      ## Architecture & Documentation
-- [Product Requirements](docs/product-requirements.md)
-- [Architecture](docs/architecture.md)
-- [Data Model](docs/data-model.md)
-- [Graph Schema](docs/graph-schema.md)
-- [Neo4j Development](docs/neo4j-development.md)
-- [Synthetic Data Strategy](docs/synthetic-data.md)
-- [Ingestion Pipeline](docs/ingestion-pipeline.md)
-- [Graph Synchronization](docs/graph-sync.md)
-- **docs/ingestion-pipeline.md**: Idempotent ETL processes.
-- **docs/graph-analytics.md**: Engine architecture and fallback mechanisms.
-- **docs/pattern-detection.md**: Deterministic suspicious lead generation.
-- **docs/review-workflow.md**: Human-in-the-loop review state management.
-- [Extraction Pipeline](docs/extraction-pipeline.md): Overview of the NLP extraction flow, idempotency, and graph syncing.
-- [Human Review Workflow](docs/extraction-review.md): Guidelines on verification statuses, traceability, and audit logging.
-- [Extraction Providers](docs/extraction-providers.md): Pluggable architecture for deterministic and NLP-based extraction models.
-- [NER Fine-Tuning Plan](docs/ner-finetuning-plan.md): Strategy for generating synthetic datasets and training a custom NER model.
-- [Authentication](docs/authentication.md): JWT HS256 constraints, bcrypt password policy, and token handling.
-- [Role-Based Access Control](docs/rbac.md): Role definitions and endpoint-level restrictions.
-- [Case Access Control](docs/case-access-control.md): Hierarchical case-assignment isolation.
-- [Audit Logging](docs/audit-logging.md): Immutable, append-only operation tracking with payload redaction.
-- [Milestone 12 Limitations](docs/milestone-12-limitations.md): Development constraints vs production security posture.
-│   ├── graph-schema.md        # Neo4j Nodes and Relationships
-│   ├── neo4j-development.md   # Local Neo4j Setup & Offline Behavior
-│   └── risks-and-assumptions.md
+│   ├── product-requirements.md
+│   ├── architecture.md
+│   ├── api-design.md
+│   ├── data-model.md
+│   ├── graph-schema.md
+│   ├── neo4j-development.md
+│   ├── synthetic-data.md
+│   ├── ingestion-pipeline.md
+│   ├── graph-sync.md
+│   ├── graph-analytics.md
+│   ├── pattern-detection.md
+│   ├── authentication.md
+│   ├── rbac.md
+│   ├── case-access-control.md
+│   ├── audit-logging.md
+│   ├── report-generation.md
+│   ├── report-export-security.md
+│   ├── report-content-policy.md
+│   ├── milestone-12-limitations.md
+│   └── milestone-13-limitations.md
 ├── apps/
 │   ├── backend/               # Python FastAPI REST service
 │   │   ├── app/

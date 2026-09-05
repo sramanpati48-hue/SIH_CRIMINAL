@@ -6,6 +6,8 @@ import RelationshipCandidateCard, { RelationshipCandidate } from "./Relationship
 
 import ExtractionStatus from "./ExtractionStatus";
 
+import { api } from "@/lib/api";
+
 interface Props {
   documentId: string;
 }
@@ -19,9 +21,7 @@ export default function ExtractionReviewPanel({ documentId }: Props) {
   const fetchCandidates = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/v1/documents/${documentId}/extraction-candidates`);
-      if (!res.ok) throw new Error("Failed to fetch candidates");
-      const data = await res.json();
+      const data = await api.getExtractionCandidates(documentId);
       setEntities(data.entities || []);
       setRelationships(data.relationships || []);
     } catch (err: unknown) {
@@ -33,11 +33,7 @@ export default function ExtractionReviewPanel({ documentId }: Props) {
 
   useEffect(() => {
     let active = true;
-    fetch(`/api/v1/documents/${documentId}/extraction-candidates`)
-      .then(res => {
-        if (!res.ok) throw new Error("Failed to fetch candidates");
-        return res.json();
-      })
+    api.getExtractionCandidates(documentId)
       .then(data => {
         if (active) {
           setEntities(data.entities || []);

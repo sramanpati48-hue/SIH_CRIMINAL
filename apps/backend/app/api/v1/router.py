@@ -33,6 +33,14 @@ api_v1_router.include_router(
     tags=["Documents"],
 )
 
+# Report export (nested under cases)
+from apps.backend.app.api.v1.endpoints import reports
+api_v1_router.include_router(
+    reports.router,
+    prefix="/cases/{case_id}/report",
+    tags=["Reports"],
+)
+
 # Placeholders for future milestone routers:
 # api_v1_router.include_router(audit.router, prefix="/audit", tags=["Audit Logs"])
 

@@ -50,8 +50,26 @@ def run_case_analytics(case_id: str, db: Session = Depends(get_db)) -> Analytics
             case_id, limit=analytics_settings.ANALYTICS_MAX_NODES
         )
     except Exception:
-        # E.g. Offline
-        graph_response = None
+        # Fallback to PostgreSQL relational data if Neo4j is offline
+        from apps.backend.app.models.entity import ExtractedEntity
+        from apps.backend.app.models.relationship import ExtractedRelationship
+        from apps.backend.app.graph.schema import GraphResponse, GraphNode, GraphEdge
+        
+        entities = db.query(ExtractedEntity).filter(ExtractedEntity.case_id == case_id, ExtractedEntity.verification_status.in_(["ACCEPTED", "CORRECTED"])).all()
+        relationships = db.query(ExtractedRelationship).filter(ExtractedRelationship.case_id == case_id, ExtractedRelationship.verification_status.in_(["ACCEPTED", "CORRECTED"])).all()
+        
+        nodes = []
+        for e in entities:
+            nodes.append(GraphNode(
+                id=e.id, label=e.entity_type, entity_type=e.entity_type, properties={"name": e.canonical_name}, case_id=case_id
+            ))
+        edges = []
+        for r in relationships:
+            edges.append(GraphEdge(
+                id=r.id, source_id=r.source_entity_id, target_id=r.target_entity_id, relationship_type=r.relation_type, verified=True
+            ))
+        
+        graph_response = GraphResponse(case_id=case_id, nodes=nodes, edges=edges, generated_at=datetime.now(timezone.utc))
         
     service = AnalyticsService(case_id)
     response, features, alerts = service.run_analysis(graph_response)

@@ -26,6 +26,20 @@ export default function CaseOverviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRunningAnalytics, setIsRunningAnalytics] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleExportReport = async () => {
+    try {
+      setIsExporting(true);
+      setExportError(null);
+      await api.exportCaseReport(caseId);
+    } catch (e: unknown) {
+      setExportError(e instanceof Error ? e.message : 'Export failed.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleRunAnalytics = async () => {
     try {
@@ -122,6 +136,12 @@ export default function CaseOverviewPage() {
         <span className="text-slate-200 font-mono">{caseData.case_number}</span>
       </div>
 
+      {exportError && (
+        <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-lg text-sm mb-4">
+          Failed to export report: {exportError}
+        </div>
+      )}
+
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-100">{caseData.title}</h2>
@@ -139,6 +159,20 @@ export default function CaseOverviewPage() {
               {caseData.priority}
             </span>
           </div>
+        </div>
+        <div>
+          <button 
+            onClick={handleExportReport}
+            disabled={isExporting}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-md text-sm font-medium transition disabled:opacity-50"
+          >
+            {isExporting ? (
+              <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            )}
+            Export Report (HTML)
+          </button>
         </div>
       </div>
 

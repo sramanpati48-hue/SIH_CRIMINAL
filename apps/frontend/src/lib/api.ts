@@ -232,5 +232,41 @@ export const api = {
       body: params
     });
     return handleResponse<{ access_token: string, user: any }>(response);
+  },
+
+  async getExtractionCandidates(caseId: string): Promise<any> {
+    // For prototype, we'll fetch from document-1 to mock case-level candidates
+    const response = await fetchWithTimeout(`${API_BASE_URL}/documents/doc-1/extraction-candidates`);
+    return handleResponse<any>(response);
+  },
+
+  // Export
+  async exportCaseReport(caseId: string): Promise<void> {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/cases/${caseId}/report/html`, {
+      method: 'GET'
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('unauthorized'));
+        }
+        throw new Error("Authentication required.");
+      }
+      if (response.status === 403) {
+        throw new Error("You do not have permission to export this case report.");
+      }
+      throw new Error(`Export failed: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `case_${caseId}_report.html`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   }
 };

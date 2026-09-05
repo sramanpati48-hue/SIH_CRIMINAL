@@ -53,4 +53,60 @@ describe('API Client', () => {
     expect(result.nodes.length).toBeGreaterThan(0);
     expect(fetch).not.toHaveBeenCalled();
   });
+
+  describe('exportCaseReport', () => {
+    beforeEach(() => {
+      // Mock URL.createObjectURL and URL.revokeObjectURL
+      global.URL.createObjectURL = vi.fn(() => 'blob:test-url');
+      global.URL.revokeObjectURL = vi.fn();
+      
+      // Mock document.createElement and click
+      const mockClick = vi.fn();
+      const mockAnchor = {
+        href: '',
+        download: '',
+        click: mockClick
+      };
+      vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor as any);
+      vi.spyOn(document.body, 'appendChild').mockImplementation(() => null as any);
+      vi.spyOn(document.body, 'removeChild').mockImplementation(() => null as any);
+    });
+
+    it('successfully downloads report and revokes URL', async () => {
+      const mockBlob = new Blob(['<html></html>']);
+      const mockHeaders = new Headers();
+      mockHeaders.set('Content-Disposition', 'attachment; filename="test-case.html"');
+      
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        blob: async () => mockBlob,
+        headers: mockHeaders
+      } as unknown as Response);
+
+      await api.exportCaseReport('C001');
+
+      expect(fetch).toHaveBeenCalled();
+      expect(global.URL.createObjectURL).toHaveBeenCalledWith(mockBlob);
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-url');
+      expect(document.createElement).toHaveBeenCalledWith('a');
+    });
+
+    it('throws authentication error on 401', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 401
+      } as Response);
+
+      await expect(api.exportCaseReport('C001')).rejects.toThrow("Authentication required.");
+    });
+
+    it('throws authorization error on 403', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 403
+      } as Response);
+
+      await expect(api.exportCaseReport('C001')).rejects.toThrow("You do not have permission to export this case report.");
+    });
+  });
 });
