@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import { CaseResponse, GraphHealthResponse, SimilarityResponse, MLRunResponse } from '@/types/api';
+import { CaseResponse, GraphHealthResponse, SimilarityResponse, MLRunResponse, PatternAlert } from '@/types/api';
 import { PatternAlertList } from '@/components/analytics/PatternAlertList';
 import { AnalyticsStatus } from '@/components/analytics/AnalyticsStatus';
 import { CaseSimilarityCard } from '@/components/analytics/CaseSimilarityCard';
@@ -15,7 +15,7 @@ export default function CaseOverviewPage() {
   const { caseId } = useParams() as { caseId: string };
   const [caseData, setCaseData] = useState<CaseResponse | null>(null);
   const [health, setHealth] = useState<GraphHealthResponse | null>(null);
-  const [patterns, setPatterns] = useState<any[]>([]);
+  const [patterns, setPatterns] = useState<PatternAlert[]>([]);
   
   const [similarity, setSimilarity] = useState<SimilarityResponse | null>(null);
   const [isComputingSimilarity, setIsComputingSimilarity] = useState(false);
@@ -33,8 +33,8 @@ export default function CaseOverviewPage() {
       await api.runAnalytics(caseId);
       const updatedPatterns = await api.getCasePatterns(caseId);
       setPatterns(updatedPatterns);
-    } catch (e: any) {
-      alert(`Analytics failed: ${e.message}`);
+    } catch (e: unknown) {
+      alert(`Analytics failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setIsRunningAnalytics(false);
     }
@@ -43,10 +43,10 @@ export default function CaseOverviewPage() {
   const handleRunSimilarity = async () => {
     try {
       setIsComputingSimilarity(true);
-      const result = await api.runCaseSimilarity(caseId, 5);
+      const result = (await api.runCaseSimilarity(caseId, 5)) as SimilarityResponse;
       setSimilarity(result);
-    } catch (e: any) {
-      alert(`Similarity failed: ${e.message}`);
+    } catch (e: unknown) {
+      alert(`Similarity failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setIsComputingSimilarity(false);
     }
@@ -55,28 +55,28 @@ export default function CaseOverviewPage() {
   const handleRunMl = async () => {
     try {
       setIsRunningMl(true);
-      const result = await api.runMLPredictions(caseId);
+      const result = (await api.runMLPredictions(caseId)) as MLRunResponse;
       setMlData(result);
-    } catch (e: any) {
-      alert(`ML run failed: ${e.message}`);
+    } catch (e: unknown) {
+      alert(`ML run failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setIsRunningMl(false);
     }
   };
 
   const handleReviewStatusChange = (alertId: string, newStatus: string) => {
-    setPatterns(prev => prev.map(p => p.alert_id === alertId ? { ...p, status: newStatus } : p));
+    setPatterns(prev => prev.map(p => p.alert_id === alertId ? { ...p, status: newStatus as PatternAlert["status"] } : p));
   };
 
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true);
-        const [caseRes, healthRes, patternsRes, simRes, mlRes] = await Promise.all([
+        const [caseRes, healthRes, patternsRes, simRes] = await Promise.all([
           api.getCase(caseId),
           api.getGraphHealth().catch(() => null),
           api.getCasePatterns(caseId).catch(() => []),
-          api.getCaseSimilarity(caseId).catch(() => null),
+          api.getCaseSimilarity(caseId).catch(() => null) as Promise<SimilarityResponse | null>,
           api.getMLPredictions(caseId).catch(() => null)
         ]);
         setCaseData(caseRes);
@@ -86,8 +86,8 @@ export default function CaseOverviewPage() {
         
         // Fetch ML Data if it exists, for simplicity we just rely on state if already run in this session
         // A production app would reconstruct MLRunResponse from /predictions and /model-metadata
-      } catch (err: any) {
-        setError(err.message || 'Failed to load case data');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load case data');
       } finally {
         setLoading(false);
       }
@@ -228,7 +228,7 @@ export default function CaseOverviewPage() {
           <ModelPredictionCard 
             anomalyPrediction={mlData?.anomaly_baseline || null}
             supervisedPrediction={mlData?.supervised_baseline || null}
-            datasetMetadata={mlData?.dataset_metadata}
+            datasetMetadata={mlData?.dataset_metadata ?? null}
             loading={isRunningMl}
             onRunModel={handleRunMl}
           />

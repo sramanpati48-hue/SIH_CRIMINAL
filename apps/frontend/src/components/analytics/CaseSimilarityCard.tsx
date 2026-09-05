@@ -60,7 +60,7 @@ export function CaseSimilarityCard({ similarity, loading, onRunSimilarity }: Cas
                     <div className="flex flex-wrap gap-1">
                       {Object.entries(match.matched_features).map(([k, v]) => (
                         <span key={k} className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">
-                          {k}: {v}
+                          {k}: {String(v)}
                         </span>
                       ))}
                     </div>

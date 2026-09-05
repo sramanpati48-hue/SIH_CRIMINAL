@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { NetworkGraph } from '../components/graph/NetworkGraph';
 import { GraphResponse } from '../types/api';
 import React from 'react';

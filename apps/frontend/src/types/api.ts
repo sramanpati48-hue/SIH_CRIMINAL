@@ -2,7 +2,7 @@ export interface GraphNode {
   id: string;
   label: string;
   entity_type: string;
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
   case_id: string | null;
   source_document_ids: string[];
 }
@@ -12,7 +12,7 @@ export interface GraphEdge {
   source_id: string;
   target_id: string;
   relationship_type: string;
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
   source_document_id: string | null;
   source_type: string | null;
   event_date: string | null; // ISO datetime string
@@ -45,7 +45,7 @@ export interface PatternAlert {
   explanation: string;
   entities_involved?: string[];
   evidence_ids?: string[];
-  feature_values?: Record<string, any>;
+  feature_values?: Record<string, unknown>;
   requires_human_verification?: boolean;
   status: 'OPEN' | 'ACCEPTED' | 'REJECTED' | 'CORRECTED' | 'NEEDS_MORE_INFORMATION';
   created_at: string;
@@ -64,8 +64,8 @@ export interface SimilarityMatch {
   current_case_id: string;
   similar_case_id: string;
   similarity_score: number;
-  matched_features: Record<string, any>;
-  differing_features: Record<string, any>;
+  matched_features: Record<string, unknown>;
+  differing_features: Record<string, unknown>;
   explanation: string;
   feature_version: string;
   analysis_run_id: string;
@@ -84,7 +84,7 @@ export interface ModelPrediction {
   prediction: string;
   score: number | null;
   explanation: string;
-  top_features: Record<string, any>;
+  top_features: Record<string, unknown>;
   model_version: string;
   dataset_version: string;
   feature_version: string;
@@ -94,7 +94,7 @@ export interface ModelPrediction {
 
 export interface MLRunResponse {
   case_id: string;
-  dataset_metadata: Record<string, any>;
+  dataset_metadata: Record<string, unknown>;
   anomaly_baseline: ModelPrediction | null;
   supervised_baseline: ModelPrediction | null;
   comparison: {
@@ -170,13 +170,70 @@ export interface DocumentResponse {
 
 export interface IngestionSummary {
   status: string;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
 }
 
 export interface ApiError {
   status: number;
   code?: string;
   message: string;
-  details?: any;
+  details?: unknown;
   graphUnavailable?: boolean;
+}
+export interface ExtractionRun {
+  extraction_run_id: string;
+  provider: string;
+  provider_version: string;
+  model_version: string;
+  status: string;
+  entity_candidate_count: number;
+  relationship_candidate_count: number;
+  warnings: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface ProviderComparisonResult {
+  dataset_version: string;
+  test_document_ids: string[];
+  evaluation_timestamp: string;
+  providers: any[];
+}
+
+export interface TrainingReadinessSplit {
+  exists: boolean;
+  document_count: number;
+  entity_count: number;
+  label_distribution: { label: string; count: number; is_sufficient: boolean }[];
+}
+
+export interface TrainingReadinessStatus {
+  status: string;
+  dataset_version: string;
+  training_enabled: boolean;
+  train_split: TrainingReadinessSplit;
+  validation_split: TrainingReadinessSplit;
+  test_split: TrainingReadinessSplit;
+  warnings: string[];
+  errors: string[];
+}
+
+export interface ExtractionModel {
+  id: string;
+  model_id: string;
+  provider: string;
+  model_type?: string;
+  model_version: string;
+  status: string;
+  dataset_version?: string;
+  python_version?: string;
+  spacy_version?: string;
+  created_at: string;
+}
+
+export interface ExtractionModelMetrics {
+  model_id: string;
+  status: string;
+  training_metrics: Record<string, any>;
+  test_metrics: Record<string, any>;
 }

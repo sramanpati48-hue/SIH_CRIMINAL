@@ -16,7 +16,7 @@ const MOCK_GRAPH_ENABLED = process.env.NEXT_PUBLIC_ENABLE_MOCK_GRAPH === 'true';
 
 class ApiClientError extends Error {
   public status: number;
-  public details?: any;
+  public details?: unknown;
   public graphUnavailable?: boolean;
 
   constructor(error: ApiError) {
@@ -28,18 +28,28 @@ class ApiClientError extends Error {
   }
 }
 
+import { getMemoryToken } from '@/context/AuthContext';
+
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 15000): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
 
+  const token = getMemoryToken();
+  const headers = new Headers(options.headers || {});
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
   try {
     const response = await fetch(url, {
       ...options,
+      headers,
       signal: controller.signal,
     });
     return response;
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
+  } catch (error: unknown) {
+    const err = error as Error;
+    if (err.name === 'AbortError') {
       throw new ApiClientError({
         status: 408,
         message: 'Request timed out. Please try again.',
@@ -71,8 +81,14 @@ async function handleResponse<T>(response: Response): Promise<T> {
         message = errorData.detail || errorData.error?.message || message;
       }
       details = errorData;
-    } catch (e) {
+    } catch {
       // Body is not JSON
+    }
+    
+    if (response.status === 401) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('unauthorized'));
+      }
     }
 
     throw new ApiClientError({
@@ -150,42 +166,71 @@ export const api = {
     return handleResponse<EntityGraphFeature[]>(response);
   },
 
-  async reviewAlert(alertId: string, action: string, rationale: string = ""): Promise<any> {
+  async reviewAlert(alertId: string, action: string, rationale: string = ""): Promise<unknown> {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/alerts/${alertId}/review?action=${action}&rationale=${encodeURIComponent(rationale)}`,
       { method: 'POST' }
     );
-    return handleResponse<any>(response);
+    return handleResponse<unknown>(response);
   },
 
-  async checkAnalyticsHealth(): Promise<any> {
+  async checkAnalyticsHealth(): Promise<unknown> {
     const response = await fetchWithTimeout(`${API_BASE_URL}/analytics/health`, undefined, 5000);
-    return handleResponse<any>(response);
+    return handleResponse<unknown>(response);
   },
 
-  async getCaseSimilarity(caseId: string, limit: number = 5): Promise<any> {
+  async getCaseSimilarity(caseId: string, limit: number = 5): Promise<unknown> {
     const response = await fetchWithTimeout(`${API_BASE_URL}/cases/${caseId}/similarity?limit=${limit}`);
-    return handleResponse<any>(response);
+    return handleResponse<unknown>(response);
   },
 
-  async runCaseSimilarity(caseId: string, limit: number = 5): Promise<any> {
+  async runCaseSimilarity(caseId: string, limit: number = 5): Promise<unknown> {
     const response = await fetchWithTimeout(`${API_BASE_URL}/cases/${caseId}/similarity?top_k=${limit}`, { method: 'POST' });
-    return handleResponse<any>(response);
+    return handleResponse<unknown>(response);
   },
 
-  async getMLPredictions(caseId: string): Promise<any> {
+  async getMLPredictions(caseId: string): Promise<unknown> {
     const response = await fetchWithTimeout(`${API_BASE_URL}/cases/${caseId}/predictions`);
-    return handleResponse<any>(response);
+    return handleResponse<unknown>(response);
   },
 
-  async runMLPredictions(caseId: string): Promise<any> {
+  async runMLPredictions(caseId: string): Promise<unknown> {
     const response = await fetchWithTimeout(`${API_BASE_URL}/cases/${caseId}/predict`, { method: 'POST' });
-    return handleResponse<any>(response);
+    return handleResponse<unknown>(response);
   },
 
-  async getCaseIngestionSummary(caseId: string): Promise<any> {
+  async getCaseIngestionSummary(caseId: string): Promise<unknown> {
     // Expected endpoint: GET /api/v1/cases/{caseId}/ingestion-summary (Assuming it exists or will be handled gracefully if 404)
     const response = await fetchWithTimeout(`${API_BASE_URL}/cases/${caseId}/ingestion-summary`);
+    return handleResponse<unknown>(response);
+  },
+
+  // Training & Models
+  async getTrainingReadiness() {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/extraction/training-readiness`);
     return handleResponse<any>(response);
+  },
+  async listModels() {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/extraction/models`);
+    return handleResponse<any[]>(response);
+  },
+  async getModelMetrics(modelId: string) {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/extraction/models/${modelId}/metrics`);
+    return handleResponse<any>(response);
+  },
+
+  // Auth
+  async login(username: string, password: string): Promise<{ access_token: string, user: any }> {
+    const params = new URLSearchParams();
+    params.append('username', username);
+    params.append('password', password);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params
+    });
+    return handleResponse<{ access_token: string, user: any }>(response);
   }
 };

@@ -1,7 +1,7 @@
 """Configuration settings and thresholds for graph analytics."""
 
 import os
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class AnalyticsConfig(BaseSettings):
@@ -33,8 +33,7 @@ class AnalyticsConfig(BaseSettings):
     # Development Identity
     DEV_REVIEWER_ID: str = os.getenv("DEV_REVIEWER_ID", "DEV-USER-001")
 
-    class Config:
-        env_prefix = ""
+    model_config = SettingsConfigDict(env_prefix="")
 
 
 # Global singleton instance

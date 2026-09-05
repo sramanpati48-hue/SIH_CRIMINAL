@@ -11,6 +11,8 @@ class ExtractedEntity(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     __tablename__ = "extracted_entities"
 
+    extraction_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
     case_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False
     )

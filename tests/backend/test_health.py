@@ -3,9 +3,9 @@
 from datetime import datetime
 
 
-def test_health_check_endpoint(client):
+def test_health_check_endpoint(admin_client):
     """Test GET /api/v1/health returns 200 OK and expected HealthCheckResponse structure."""
-    response = client.get("/api/v1/health")
+    response = admin_client.get("/api/v1/health")
 
     # Assert Status Code & Content Type
     assert response.status_code == 200
@@ -29,9 +29,9 @@ def test_health_check_endpoint(client):
     assert parsed_dt is not None
 
 
-def test_root_info_endpoint(client):
+def test_root_info_endpoint(admin_client):
     """Test GET / returns 200 OK service metadata."""
-    response = client.get("/")
+    response = admin_client.get("/")
     assert response.status_code == 200
     data = response.json()
     assert "service" in data

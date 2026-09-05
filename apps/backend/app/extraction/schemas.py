@@ -1,6 +1,6 @@
 """Extraction Pydantic schemas."""
 from typing import Literal, List, Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 VerificationStatus = Literal["UNREVIEWED", "ACCEPTED", "REJECTED", "CORRECTED", "NEEDS_MORE_INFORMATION"]
 EntityType = Literal["PERSON", "ALIAS", "PHONE", "VEHICLE", "LOCATION", "ORGANIZATION", "BANK_ACCOUNT", "CASE_ID", "DATE", "MONEY"]
@@ -51,12 +51,18 @@ class ExtractedRelationshipCandidate(BaseModel):
     relationship_type: RelationshipType
     target_candidate_id: str
     source_document_id: str
+    case_id: str
     source_text: str
+    start_offset: Optional[int] = None
+    end_offset: Optional[int] = None
+    evidence_text: Optional[str] = None
     event_date: Optional[str] = None
     confidence: float
     verification_status: VerificationStatus = "UNREVIEWED"
     extraction_provider: str
     extraction_version: str
+    relationship_rule_version: str
+    source_record_id: Optional[str] = None
 
     @field_validator("confidence")
     def validate_confidence(cls, v):
@@ -64,11 +70,27 @@ class ExtractedRelationshipCandidate(BaseModel):
             raise ValueError("Confidence must be between 0 and 1")
         return v
 
-    @field_validator("source_text")
-    def validate_source_text(cls, v):
-        if not v or not v.strip():
-            raise ValueError("Source text must be non-empty")
+    @field_validator("start_offset", "end_offset")
+    def validate_offsets_non_negative(cls, v):
+        if v is not None and v < 0:
+            raise ValueError("Offsets must be non-negative")
         return v
+
+    @model_validator(mode="after")
+    def validate_dependencies(self) -> 'ExtractedRelationshipCandidate':
+        if self.source_candidate_id == self.target_candidate_id:
+            raise ValueError("Source and target candidate IDs must be different")
+        if self.end_offset is not None and self.start_offset is not None:
+            if self.end_offset < self.start_offset:
+                raise ValueError("end_offset must be greater than or equal to start_offset")
+            # Evidence text matching
+            if self.evidence_text:
+                span = self.source_text[self.start_offset:self.end_offset]
+                if span != self.evidence_text:
+                    raise ValueError(f"evidence_text mismatch: expected '{span}', got '{self.evidence_text}'")
+        if not self.source_text or not self.source_text.strip():
+            raise ValueError("Source text must be non-empty")
+        return self
 
 class DocumentExtractionResult(BaseModel):
     document_id: str
@@ -82,16 +104,13 @@ class ReviewDecision(BaseModel):
     corrected_value: Optional[str] = None
     rationale: Optional[str] = None
 
-    @field_validator("corrected_value")
-    def validate_corrected_value(cls, v, info):
-        status = info.data.get("verification_status")
-        if status == "CORRECTED" and not v:
-            raise ValueError("corrected_value is required when status is CORRECTED")
-        return v
-
-    @field_validator("rationale")
-    def validate_rationale(cls, v, info):
-        status = info.data.get("verification_status")
-        if status in ["CORRECTED", "NEEDS_MORE_INFORMATION"] and not v:
-            raise ValueError("rationale is required when status is CORRECTED or NEEDS_MORE_INFORMATION")
-        return v
+    @model_validator(mode="after")
+    def validate_dependencies(self) -> 'ReviewDecision':
+        if self.verification_status == "CORRECTED":
+            if not self.corrected_value:
+                raise ValueError("corrected_value is required when status is CORRECTED")
+            if not self.rationale:
+                raise ValueError("rationale is required when status is CORRECTED")
+        if self.verification_status == "NEEDS_MORE_INFORMATION" and not self.rationale:
+            raise ValueError("rationale is required when status is NEEDS_MORE_INFORMATION")
+        return self

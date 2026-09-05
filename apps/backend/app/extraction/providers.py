@@ -17,6 +17,15 @@ class ExtractorProvider(ABC):
     def provider_version(self) -> str:
         pass
 
+    @property
+    @abstractmethod
+    def model_version(self) -> str:
+        pass
+
+    @property
+    def extraction_version(self) -> str:
+        return "1.0.0"
+
     @abstractmethod
     def extract(self, document_id: str, document_text: str) -> DocumentExtractionResult:
         """Extract entities and relationships from document text."""
@@ -33,6 +42,10 @@ class LLMExtractor(ExtractorProvider):
     @property
     def provider_version(self) -> str:
         return "1.0.0"
+        
+    @property
+    def model_version(self) -> str:
+        return "N/A"
 
     def extract(self, document_id: str, document_text: str) -> DocumentExtractionResult:
         raise NotImplementedError("LLM Extractor not implemented yet.")
@@ -48,6 +61,10 @@ class HuggingFaceExtractor(ExtractorProvider):
     @property
     def provider_version(self) -> str:
         return "1.0.0"
+
+    @property
+    def model_version(self) -> str:
+        return "N/A"
 
     def extract(self, document_id: str, document_text: str) -> DocumentExtractionResult:
         raise NotImplementedError("Hugging Face Extractor not implemented yet.")

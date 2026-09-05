@@ -19,6 +19,7 @@ from apps.backend.app.models.processing_job import ProcessingJob  # noqa: F401
 from apps.backend.app.models.alert import Alert  # noqa: F401
 from apps.backend.app.models.feedback import InvestigatorFeedback  # noqa: F401
 from apps.backend.app.models.audit_log import AuditLog  # noqa: F401
+from apps.backend.app.models.case_access import CaseAccess  # noqa: F401
 
 
 TEST_DATABASE_URL = "sqlite:///./test_sih.db"
@@ -62,10 +63,64 @@ def clean_tables():
         db.close()
 
 
+from apps.backend.app.core.security import get_password_hash, create_access_token
+from apps.backend.app.models.user import Role
+
+
 @pytest.fixture
-def client() -> TestClient:
-    """Provide a FastAPI TestClient bound to the test database."""
+def unauthenticated_client() -> TestClient:
+    """Provide an unauthenticated TestClient."""
     return TestClient(app)
+
+
+@pytest.fixture
+def test_users(db_session: Session) -> dict[str, User]:
+    """Create a set of standard test users with different roles."""
+    users = {}
+    for role in [Role.ADMINISTRATOR, Role.INVESTIGATOR, Role.ANALYST, Role.REVIEWER]:
+        username = f"test_{role.value.lower()}"
+        user = User(
+            username=username,
+            email=f"{username}@example.com",
+            password_hash=get_password_hash("testpassword"),
+            role=role.value,
+            is_active=True
+        )
+        db_session.add(user)
+        users[role.value] = user
+    db_session.commit()
+    for user in users.values():
+        db_session.refresh(user)
+    return users
+
+
+def _get_auth_client(role: Role, test_users: dict[str, User]) -> TestClient:
+    """Helper to create an authenticated client."""
+    user = test_users[role.value]
+    token = create_access_token(subject=user.id)
+    c = TestClient(app)
+    c.headers.update({"Authorization": f"Bearer {token}"})
+    return c
+
+
+@pytest.fixture
+def admin_client(test_users: dict[str, User]) -> TestClient:
+    return _get_auth_client(Role.ADMINISTRATOR, test_users)
+
+
+@pytest.fixture
+def investigator_client(test_users: dict[str, User]) -> TestClient:
+    return _get_auth_client(Role.INVESTIGATOR, test_users)
+
+
+@pytest.fixture
+def analyst_client(test_users: dict[str, User]) -> TestClient:
+    return _get_auth_client(Role.ANALYST, test_users)
+
+
+@pytest.fixture
+def reviewer_client(test_users: dict[str, User]) -> TestClient:
+    return _get_auth_client(Role.REVIEWER, test_users)
 
 
 @pytest.fixture

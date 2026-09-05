@@ -68,7 +68,7 @@ export default function ExtractionCandidateCard({ candidate, onReview }: Props) 
       </div>
 
       <div className="mb-4 text-sm opacity-90 italic border-l-4 border-opacity-50 border-white pl-2">
-        "...{candidate.source_text}..."
+        &ldquo;...{candidate.source_text}...&rdquo;
       </div>
       
       <div className="text-xs opacity-60 mb-4 flex justify-between">

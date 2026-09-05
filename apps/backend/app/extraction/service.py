@@ -14,25 +14,90 @@ from apps.backend.app.extraction.schemas import ReviewDecision
 from apps.backend.app.extraction.resolution import resolve_entity_candidate
 from apps.backend.app.graph.service import GraphService, GraphServiceUnavailableError
 
+from apps.backend.app.core.config import settings
+from apps.backend.app.extraction.local_ner_provider import SpacyNERProvider
+
 class DocumentExtractionService:
     def __init__(self, db: Session):
         self.db = db
-        self.extractor = MockExtractor() # Use mock by default as requested
+        if settings.EXTRACTION_PROVIDER == "SPACY":
+            self.extractor = SpacyNERProvider()
+        else:
+            self.extractor = MockExtractor()
         self.graph_service = GraphService()
 
-    def process_document(self, document_id: str) -> Dict[str, Any]:
+    def process_document(self, document_id: str, extract_relationships: bool = False) -> Dict[str, Any]:
         """Extract candidates from document and persist as UNREVIEWED."""
+        from apps.backend.app.models.extraction_run import ExtractionRun
+        from apps.backend.app.extraction.relationship_service import RelationshipExtractionService
+        from apps.backend.app.extraction.schemas import ExtractedEntityCandidate
+        import hashlib
+        
         doc = self.db.query(Document).filter(Document.id == document_id).first()
         if not doc:
             raise ValueError(f"Document {document_id} not found")
         
-        # 1. Extract
-        result = self.extractor.extract(document_id, doc.raw_content or "")
+        # 1. Resolve Provider Identity
+        provider_name = self.extractor.provider_name
+        provider_ver = self.extractor.provider_version
+        model_ver = self.extractor.model_version
+        extraction_ver = self.extractor.extraction_version
+        post_proc_ver = "1.0.0" # Deterministic post-processing version
+        rel_rule_ver = "1.0.0" # Relationship rules version
         
-        # 2. Save Entities
+        run_identity = f"{document_id}:{provider_name}:{provider_ver}:{model_ver}:{extraction_ver}:{post_proc_ver}:{rel_rule_ver}"
+        extraction_run_id = hashlib.sha256(run_identity.encode("utf-8")).hexdigest()
+        
+        run = self.db.query(ExtractionRun).filter(ExtractionRun.extraction_run_id == extraction_run_id).first()
+        if run and run.status == "COMPLETED":
+            return {
+                "status": "success",
+                "extraction_run_id": run.extraction_run_id,
+                "entities": run.entity_candidate_count,
+                "relationships": run.relationship_candidate_count,
+                "warning": "Run already exists (idempotency matched). Returned cached counts."
+            }
+            
+        if not run:
+            run = ExtractionRun(
+                extraction_run_id=extraction_run_id,
+                document_id=document_id,
+                case_id=doc.case_id,
+                provider=provider_name,
+                provider_version=provider_ver,
+                model_version=model_ver,
+                extraction_version=extraction_ver,
+                post_processing_version=post_proc_ver,
+                relationship_rule_version=rel_rule_ver,
+                status="RUNNING",
+                started_at=datetime.now(timezone.utc)
+            )
+            self.db.add(run)
+            self.db.commit()
+            
+        # Extract
+        try:
+            result = self.extractor.extract(document_id, doc.raw_content or "")
+        except RuntimeError as e:
+            if "unavailable" in str(e).lower():
+                run.status = "PROVIDER_UNAVAILABLE"
+                run.warnings = json.dumps({"reason": str(e)})
+                self.db.commit()
+                return {"status": "PROVIDER_UNAVAILABLE", "provider": provider_name, "reason": str(e)}
+            run.status = "FAILED"
+            run.warnings = json.dumps({"error": str(e)})
+            self.db.commit()
+            return {"status": "FAILED", "error": "Internal extraction failure"}
+        except Exception as e:
+            run.status = "FAILED"
+            run.warnings = json.dumps({"error": str(e)})
+            self.db.commit()
+            return {"status": "FAILED", "error": "Internal extraction failure"}
+
+        
+        # Save Entities
         saved_entities = {}
         for ent in result.entities:
-            # Idempotency check: don't duplicate if already extracted by this provider
             existing = self.db.query(ExtractedEntity).filter(
                 ExtractedEntity.document_id == document_id,
                 ExtractedEntity.start_offset == ent.start_offset,
@@ -44,6 +109,7 @@ class DocumentExtractionService:
                 res = resolve_entity_candidate(self.db, doc.case_id, ent.normalized_value, ent.entity_type)
                 
                 db_ent = ExtractedEntity(
+                    extraction_run_id=extraction_run_id,
                     case_id=doc.case_id,
                     document_id=document_id,
                     entity_type=ent.entity_type,
@@ -64,38 +130,45 @@ class DocumentExtractionService:
             else:
                 saved_entities[ent.candidate_id] = existing.id
 
-        # 3. Save Relationships
-        for rel in result.relationships:
-            if rel.source_candidate_id not in saved_entities or rel.target_candidate_id not in saved_entities:
-                continue
-            
-            src_id = saved_entities[rel.source_candidate_id]
-            tgt_id = saved_entities[rel.target_candidate_id]
-            
-            existing_rel = self.db.query(ExtractedRelationship).filter(
-                ExtractedRelationship.document_id == document_id,
-                ExtractedRelationship.source_entity_id == src_id,
-                ExtractedRelationship.target_entity_id == tgt_id,
-                ExtractedRelationship.relation_type == rel.relationship_type
-            ).first()
-            
-            if not existing_rel:
-                db_rel = ExtractedRelationship(
-                    case_id=doc.case_id,
-                    document_id=document_id,
-                    source_entity_id=src_id,
-                    target_entity_id=tgt_id,
-                    relation_type=rel.relationship_type,
-                    source_text_snippet=rel.source_text,
-                    confidence_score=rel.confidence,
-                    verification_status="UNREVIEWED",
-                    extraction_provider=rel.extraction_provider,
-                    extraction_version=rel.extraction_version,
+        run.entity_candidate_count = len(result.entities)
+        
+        rel_count = 0
+        if extract_relationships:
+            # We map the saved_entities IDs to the ExtractedEntityCandidate for relation extraction
+            db_entities = self.db.query(ExtractedEntity).filter_by(document_id=document_id).all()
+            entities = [
+                ExtractedEntityCandidate(
+                    candidate_id=e.id, 
+                    entity_type=e.entity_type,
+                    original_value=e.original_value or "",
+                    normalized_value=e.canonical_name,
+                    source_document_id=document_id,
+                    source_text=e.source_text or "",
+                    start_offset=e.start_offset or 0,
+                    end_offset=e.end_offset or 0,
+                    confidence=float(e.confidence_score) if e.confidence_score else 0.85,
+                    verification_status=e.verification_status,
+                    extraction_provider=e.extraction_provider or "UNKNOWN",
+                    extraction_version=e.extraction_version or "1.0"
                 )
-                self.db.add(db_rel)
-
+                for e in db_entities if e.start_offset is not None and e.end_offset is not None
+            ]
+            rel_svc = RelationshipExtractionService(self.db, provider_name, extraction_ver, extraction_run_id=extraction_run_id)
+            rel_cands = rel_svc.extract_relationships(document_id, doc.case_id, doc.raw_content or "", entities)
+            persisted = rel_svc.persist_candidates(rel_cands)
+            rel_count = len(persisted)
+            
+        run.relationship_candidate_count = rel_count
+        run.status = "COMPLETED"
+        run.completed_at = datetime.now(timezone.utc)
+        
         self.db.commit()
-        return {"status": "success", "entities": len(result.entities), "relationships": len(result.relationships)}
+        return {
+            "status": "success", 
+            "extraction_run_id": run.extraction_run_id, 
+            "entities": run.entity_candidate_count, 
+            "relationships": run.relationship_candidate_count
+        }
 
 
     def review_entity(self, entity_id: str, decision: ReviewDecision, reviewer_id: str):
@@ -107,8 +180,7 @@ class DocumentExtractionService:
         ent.reviewer_identity = reviewer_id
         
         if decision.verification_status == "CORRECTED":
-            ent.canonical_name = decision.corrected_value
-            ent.original_value = decision.corrected_value # Keep history if needed, but per prompt don't overwrite original candidate history in a destructive way without audit
+            ent.canonical_name = decision.corrected_value  # Preserve ent.original_value intact
         
         if decision.rationale:
             ent.review_rationale = decision.rationale

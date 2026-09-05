@@ -65,7 +65,7 @@ export default function RelationshipCandidateCard({ candidate, onReview }: Props
       </div>
 
       <div className="mb-4 text-sm opacity-90 italic border-l-4 border-opacity-50 border-white pl-2">
-        "...{candidate.source_text}..."
+        &ldquo;...{candidate.source_text}...&rdquo;
       </div>
 
       {isCorrecting && (

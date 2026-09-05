@@ -47,7 +47,15 @@ d:/Sih/
 - **docs/graph-analytics.md**: Engine architecture and fallback mechanisms.
 - **docs/pattern-detection.md**: Deterministic suspicious lead generation.
 - **docs/review-workflow.md**: Human-in-the-loop review state management.
-- **docs/analytics-limitations.md**: System constraints and offline behaviors.
+- [Extraction Pipeline](docs/extraction-pipeline.md): Overview of the NLP extraction flow, idempotency, and graph syncing.
+- [Human Review Workflow](docs/extraction-review.md): Guidelines on verification statuses, traceability, and audit logging.
+- [Extraction Providers](docs/extraction-providers.md): Pluggable architecture for deterministic and NLP-based extraction models.
+- [NER Fine-Tuning Plan](docs/ner-finetuning-plan.md): Strategy for generating synthetic datasets and training a custom NER model.
+- [Authentication](docs/authentication.md): JWT HS256 constraints, bcrypt password policy, and token handling.
+- [Role-Based Access Control](docs/rbac.md): Role definitions and endpoint-level restrictions.
+- [Case Access Control](docs/case-access-control.md): Hierarchical case-assignment isolation.
+- [Audit Logging](docs/audit-logging.md): Immutable, append-only operation tracking with payload redaction.
+- [Milestone 12 Limitations](docs/milestone-12-limitations.md): Development constraints vs production security posture.
 │   ├── graph-schema.md        # Neo4j Nodes and Relationships
 │   ├── neo4j-development.md   # Local Neo4j Setup & Offline Behavior
 │   └── risks-and-assumptions.md
@@ -136,7 +144,7 @@ d:/Sih/
 
 - **Run Backend Unit & Integration Tests:**
   ```bash
-  pytest -q tests/backend/test_health.py
+  pytest -q tests/backend/
   ```
 - **Run Frontend TypeScript Type-Check:**
   ```bash
@@ -164,5 +172,13 @@ docker-compose up -d
 ---
 
 ## 5. Current Milestone Limitations
-- **Current Milestone:** Initial Project Scaffolding & Health Endpoints.
-- **Pending Features:** PostgreSQL persistence, Neo4j graph synchronization, NLP entity extraction, Cytoscape graph visualization, and authentication will be added in subsequent milestones.
+- **Current Milestone:** Milestone 8 - NLP Document and Relationship Extraction.
+- **Completed Features:** PostgreSQL persistence, Neo4j graph integration, Synthetic data generation, Idempotent ingestion, Graph visualization, Graph analytics, Historical-case similarity, Text document extraction, Offline fallback for graph sync.
+- **Pending Features:** Full fine-tuning of NER models, Advanced authentication/RBAC.
+
+## Milestone 11: spaCy NER Training
+The platform supports optionally fine-tuning a custom spaCy NER model on the synthetic data:
+1. Verify readiness via `python scripts/check_ner_training_readiness.py`.
+2. Convert data via `python scripts/prepare_spacy_ner_data.py`.
+3. Train via `python scripts/train_spacy_ner.py`.
+4. Check the frontend "Model Registry" page to see registered models.

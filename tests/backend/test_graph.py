@@ -121,20 +121,20 @@ class TestGraphAPIEndpointsOffline:
     """Test API behavior when Neo4j is offline (mocked)."""
 
     @patch("apps.backend.app.graph.driver.neo4j_manager.verify_connectivity")
-    def test_health_check_offline(self, mock_verify, client):
+    def test_health_check_offline(self, mock_verify, admin_client):
         """Health check returns 200 OK but indicates offline status."""
         mock_verify.return_value = False
-        response = client.get("/api/v1/graph/health")
+        response = admin_client.get("/api/v1/graph/health")
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "unavailable"
         assert data["neo4j_available"] is False
 
     @patch("apps.backend.app.graph.driver.neo4j_manager.is_available")
-    def test_get_case_graph_offline(self, mock_is_available, client):
+    def test_get_case_graph_offline(self, mock_is_available, admin_client):
         """Endpoints return 503 when Neo4j is offline."""
         mock_is_available.return_value = False
-        response = client.get("/api/v1/cases/case_123/graph")
+        response = admin_client.get("/api/v1/cases/case_123/graph")
         assert response.status_code == 503
         assert "unavailable" in response.json()["detail"].lower()
 

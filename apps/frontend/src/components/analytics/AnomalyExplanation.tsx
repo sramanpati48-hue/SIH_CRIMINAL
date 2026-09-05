@@ -1,7 +1,14 @@
 import React from 'react';
 
+interface FeatureDetail {
+  value: number;
+  direction: string;
+  baseline: number;
+  reason?: string;
+}
+
 interface AnomalyExplanationProps {
-  features: Record<string, any>;
+  features: Record<string, FeatureDetail>;
 }
 
 export function AnomalyExplanation({ features }: AnomalyExplanationProps) {

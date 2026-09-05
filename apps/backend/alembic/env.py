@@ -24,6 +24,7 @@ from apps.backend.app.models.processing_job import ProcessingJob  # noqa: E402, 
 from apps.backend.app.models.alert import Alert  # noqa: E402, F401
 from apps.backend.app.models.feedback import InvestigatorFeedback  # noqa: E402, F401
 from apps.backend.app.models.audit_log import AuditLog  # noqa: E402, F401
+from apps.backend.app.models.case_access import CaseAccess  # noqa: E402, F401
 
 config = context.config
 

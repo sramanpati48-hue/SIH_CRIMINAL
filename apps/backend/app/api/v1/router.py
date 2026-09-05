@@ -1,8 +1,11 @@
 from fastapi import APIRouter
 
-from apps.backend.app.api.v1.endpoints import cases, documents, health, graph, ingestion, analytics, similarity, ml, extraction
+from apps.backend.app.api.v1.endpoints import cases, documents, health, graph, ingestion, analytics, similarity, ml, extraction, auth
 
 api_v1_router = APIRouter()
+
+# Authentication
+api_v1_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 
 # System
 api_v1_router.include_router(health.router, tags=["System Health"])

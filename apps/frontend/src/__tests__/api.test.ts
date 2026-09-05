@@ -22,10 +22,11 @@ describe('API Client', () => {
     try {
       await api.getCaseGraph('C001');
       expect.fail('Should have thrown');
-    } catch (error: any) {
-      expect(error.status).toBe(503);
-      expect(error.graphUnavailable).toBe(true);
-      expect(error.message).toContain('Graph data is temporarily unavailable');
+    } catch (error: unknown) {
+      const err = error as { status: number; graphUnavailable: boolean; message: string };
+      expect(err.status).toBe(503);
+      expect(err.graphUnavailable).toBe(true);
+      expect(err.message).toContain('Graph data is temporarily unavailable');
     }
   });
 

@@ -8,7 +8,7 @@ from apps.backend.app.models.alert import Alert
 from apps.backend.app.models.analytics import EntityGraphFeature
 from apps.backend.app.analytics.config import analytics_settings
 
-client = TestClient(app)
+admin_client = TestClient(app)
 
 @pytest.fixture
 def mock_case(db_session):
@@ -34,19 +34,19 @@ def mock_alert(db_session, mock_case):
     return a
 
 def test_analytics_health_offline():
-    response = client.get("/api/v1/analytics/health")
+    response = admin_client.get("/api/v1/analytics/health")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] in ["healthy", "GRAPH_UNAVAILABLE"]
     assert "gds_available" in data
 
 def test_get_case_patterns_empty(mock_case):
-    response = client.get(f"/api/v1/cases/{mock_case.id}/patterns")
+    response = admin_client.get(f"/api/v1/cases/{mock_case.id}/patterns")
     assert response.status_code == 200
     assert response.json() == []
 
 def test_review_alert(mock_alert, db_session):
-    response = client.post(
+    response = admin_client.post(
         f"/api/v1/alerts/{mock_alert.id}/review",
         params={"action": "ACCEPT"}
     )
@@ -58,7 +58,7 @@ def test_review_alert(mock_alert, db_session):
     assert mock_alert.status == "ACCEPTED"
     
 def test_review_alert_requires_rationale(mock_alert):
-    response = client.post(
+    response = admin_client.post(
         f"/api/v1/alerts/{mock_alert.id}/review",
         params={"action": "CORRECT"} # Missing rationale
     )

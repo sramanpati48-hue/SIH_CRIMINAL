@@ -25,10 +25,11 @@ export default function GraphPage() {
         
         const graphRes = await api.getCaseGraph(caseId, depth);
         setGraphData(graphRes);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const errorObj = err as { message?: string; graphUnavailable?: boolean };
         setError({
-          message: err.message || 'An error occurred loading the graph.',
-          graphUnavailable: err.graphUnavailable || false
+          message: errorObj.message || 'An error occurred loading the graph.',
+          graphUnavailable: errorObj.graphUnavailable || false
         });
       } finally {
         setLoading(false);

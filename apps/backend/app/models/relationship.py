@@ -11,6 +11,8 @@ class ExtractedRelationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     __tablename__ = "extracted_relationships"
 
+    extraction_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    
     case_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("cases.id", ondelete="CASCADE"), nullable=False
     )
@@ -47,6 +49,7 @@ class ExtractedRelationship(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     
     extraction_provider: Mapped[str | None] = mapped_column(String(100), nullable=True)
     extraction_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    relationship_rule_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
     reviewer_identity: Mapped[str | None] = mapped_column(String(100), nullable=True)
     review_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
     

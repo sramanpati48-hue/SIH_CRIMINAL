@@ -22,8 +22,8 @@ export default function CasesPage() {
         // The mock or actual listcases
         const res = await api.listCases(0, 100, statusFilter || undefined);
         setCases(res.cases);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load cases');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load cases');
       } finally {
         setLoading(false);
       }

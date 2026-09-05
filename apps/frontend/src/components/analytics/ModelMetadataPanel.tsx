@@ -1,8 +1,9 @@
 import React from 'react';
-import { Database, FileKey, ShieldCheck, Box } from 'lucide-react';
+import { Database, ShieldCheck } from 'lucide-react';
+import { MLRunResponse } from '@/types/api';
 
 interface ModelMetadataPanelProps {
-  metadata: any;
+  metadata: MLRunResponse;
 }
 
 export function ModelMetadataPanel({ metadata }: ModelMetadataPanelProps) {
@@ -17,26 +18,26 @@ export function ModelMetadataPanel({ metadata }: ModelMetadataPanelProps) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
         <div>
           <span className="text-slate-500 block mb-1">Model Version</span>
-          <span className="font-mono text-slate-300 break-all">{metadata.dataset_metadata?.supervised_valid ? metadata.supervised_baseline?.model_version || 'N/A' : metadata.anomaly_baseline?.model_version || 'N/A'}</span>
+          <span className="font-mono text-slate-300 break-all">{Boolean(metadata.dataset_metadata?.supervised_valid) ? metadata.supervised_baseline?.model_version || 'N/A' : metadata.anomaly_baseline?.model_version || 'N/A'}</span>
         </div>
         <div>
           <span className="text-slate-500 block mb-1">Dataset Version</span>
-          <span className="font-mono text-slate-300 break-all">{metadata.dataset_metadata?.dataset_version || 'N/A'}</span>
+          <span className="font-mono text-slate-300 break-all">{String(metadata.dataset_metadata?.dataset_version || 'N/A')}</span>
         </div>
         <div>
           <span className="text-slate-500 block mb-1">Feature Version</span>
-          <span className="font-mono text-slate-300 break-all">{metadata.dataset_metadata?.feature_version || 'N/A'}</span>
+          <span className="font-mono text-slate-300 break-all">{String(metadata.dataset_metadata?.feature_version || 'N/A')}</span>
         </div>
         <div>
           <span className="text-slate-500 block mb-1">Training Sample Size</span>
-          <span className="text-slate-300">{metadata.dataset_metadata?.total_cases || 0} cases</span>
+          <span className="text-slate-300">{String(metadata.dataset_metadata?.total_cases || 0)} cases</span>
         </div>
       </div>
       
-      {metadata.dataset_metadata?.class_distribution && Object.keys(metadata.dataset_metadata.class_distribution).length > 0 && (
+      {Boolean(metadata.dataset_metadata?.class_distribution) && typeof metadata.dataset_metadata?.class_distribution === 'object' && (
          <div className="mt-4 pt-3 border-t border-slate-800 text-xs flex gap-6">
             <span className="text-slate-500">Label Distribution:</span>
-            {Object.entries(metadata.dataset_metadata.class_distribution).map(([cls, count]) => (
+            {Object.entries(metadata.dataset_metadata.class_distribution as Record<string, unknown>).map(([cls, count]) => (
                 <span key={cls} className="text-slate-300">{cls}: <strong>{String(count)}</strong></span>
             ))}
          </div>

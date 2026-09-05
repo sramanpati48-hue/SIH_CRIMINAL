@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { Server, Activity, Database, AlertCircle } from 'lucide-react';
+import { Server, Activity, AlertCircle } from 'lucide-react';
+
+interface HealthStatus {
+  status: string;
+  engine?: string;
+}
 
 export function AnalyticsStatus() {
-  const [status, setStatus] = useState<any>(null);
+  const [status, setStatus] = useState<HealthStatus | null>(null);
 
   useEffect(() => {
     async function fetchStatus() {
       try {
-        const res = await api.checkAnalyticsHealth();
+        const res = (await api.checkAnalyticsHealth()) as HealthStatus;
         setStatus(res);
-      } catch (e) {
+      } catch {
         setStatus({ status: 'FAILED' });
       }
     }

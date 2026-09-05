@@ -1,12 +1,12 @@
 import React from 'react';
 import { ModelPrediction } from '@/types/api';
-import { BrainCircuit, ShieldAlert, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
+import { BrainCircuit, AlertTriangle, AlertCircle } from 'lucide-react';
 import { AnomalyExplanation } from './AnomalyExplanation';
 
 interface ModelPredictionCardProps {
   anomalyPrediction: ModelPrediction | null;
   supervisedPrediction: ModelPrediction | null;
-  datasetMetadata: any;
+  datasetMetadata: Record<string, unknown> | null;
   loading: boolean;
   onRunModel: () => void;
 }
@@ -64,7 +64,7 @@ export function ModelPredictionCard({
               
               {anomalyPrediction.top_features && Object.keys(anomalyPrediction.top_features).length > 0 && (
                 <div className="mt-3 border-t border-slate-700/50 pt-3">
-                  <AnomalyExplanation features={anomalyPrediction.top_features} />
+                  <AnomalyExplanation features={anomalyPrediction.top_features as unknown as Parameters<typeof AnomalyExplanation>[0]['features']} />
                 </div>
               )}
             </div>
@@ -77,7 +77,7 @@ export function ModelPredictionCard({
                   <AlertCircle className="w-4 h-4 text-amber-500" />
                   <span className="font-semibold">Insufficient Data</span>
                 </div>
-                <p className="text-xs">{datasetMetadata.supervised_reason}</p>
+                <p className="text-xs">{String(datasetMetadata?.supervised_reason || '')}</p>
                 <p className="text-xs mt-1">Supervised baseline is disabled. Rely on anomalies and rules.</p>
              </div>
           ) : supervisedPrediction && (
@@ -100,7 +100,7 @@ export function ModelPredictionCard({
               
               {supervisedPrediction.top_features && Object.keys(supervisedPrediction.top_features).length > 0 && (
                 <div className="mt-3 border-t border-slate-700/50 pt-3">
-                  <AnomalyExplanation features={supervisedPrediction.top_features} />
+                  <AnomalyExplanation features={supervisedPrediction.top_features as unknown as Parameters<typeof AnomalyExplanation>[0]['features']} />
                 </div>
               )}
             </div>

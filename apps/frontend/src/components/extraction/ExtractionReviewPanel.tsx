@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import ExtractionCandidateCard, { EntityCandidate, VerificationStatus } from "./ExtractionCandidateCard";
 import RelationshipCandidateCard, { RelationshipCandidate } from "./RelationshipCandidateCard";
+
+import ExtractionStatus from "./ExtractionStatus";
 
 interface Props {
   documentId: string;
@@ -11,10 +13,10 @@ interface Props {
 export default function ExtractionReviewPanel({ documentId }: Props) {
   const [entities, setEntities] = useState<EntityCandidate[]>([]);
   const [relationships, setRelationships] = useState<RelationshipCandidate[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCandidates = async () => {
+  const fetchCandidates = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch(`/api/v1/documents/${documentId}/extraction-candidates`);
@@ -22,15 +24,37 @@ export default function ExtractionReviewPanel({ documentId }: Props) {
       const data = await res.json();
       setEntities(data.entities || []);
       setRelationships(data.relationships || []);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to fetch candidates");
     } finally {
       setLoading(false);
     }
-  };
+  }, [documentId]);
 
   useEffect(() => {
-    fetchCandidates();
+    let active = true;
+    fetch(`/api/v1/documents/${documentId}/extraction-candidates`)
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to fetch candidates");
+        return res.json();
+      })
+      .then(data => {
+        if (active) {
+          setEntities(data.entities || []);
+          setRelationships(data.relationships || []);
+          setLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setError(err instanceof Error ? err.message : "Failed to fetch candidates");
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, [documentId]);
 
   const handleReview = async (type: "entity" | "relationship", id: string, status: VerificationStatus, correctedValue?: string, rationale?: string) => {
@@ -44,12 +68,12 @@ export default function ExtractionReviewPanel({ documentId }: Props) {
       
       // Update local state
       if (type === "entity") {
-        setEntities(entities.map(e => e.id === id ? { ...e, verification_status: status } : e));
+        setEntities(prev => prev.map(e => e.id === id ? { ...e, verification_status: status } : e));
       } else {
-        setRelationships(relationships.map(r => r.id === id ? { ...r, verification_status: status } : r));
+        setRelationships(prev => prev.map(r => r.id === id ? { ...r, verification_status: status } : r));
       }
-    } catch (err: any) {
-      alert("Error: " + err.message);
+    } catch (err: unknown) {
+      alert("Error: " + (err instanceof Error ? err.message : String(err)));
     }
   };
 
@@ -59,8 +83,8 @@ export default function ExtractionReviewPanel({ documentId }: Props) {
       if (!res.ok) throw new Error("Sync failed");
       const data = await res.json();
       alert("Sync completed: " + data.status);
-    } catch (err: any) {
-      alert("Sync Error: " + err.message);
+    } catch (err: unknown) {
+      alert("Sync Error: " + (err instanceof Error ? err.message : String(err)));
     }
   };
 
@@ -70,8 +94,8 @@ export default function ExtractionReviewPanel({ documentId }: Props) {
       const res = await fetch(`/api/v1/documents/${documentId}/extract`, { method: "POST" });
       if (!res.ok) throw new Error("Extraction failed");
       await fetchCandidates();
-    } catch (err: any) {
-      alert("Extraction Error: " + err.message);
+    } catch (err: unknown) {
+      alert("Extraction Error: " + (err instanceof Error ? err.message : String(err)));
       setLoading(false);
     }
   };
@@ -100,11 +124,20 @@ export default function ExtractionReviewPanel({ documentId }: Props) {
       </div>
 
       <div className="bg-yellow-900 border-l-4 border-yellow-500 p-4 mb-6">
-        <p className="text-yellow-200 text-sm font-bold">Synthetic Data & Verification Warning</p>
+        <p className="text-yellow-200 text-sm font-bold">Synthetic Data &amp; Verification Warning</p>
         <p className="text-yellow-100 text-sm mt-1">
           Models trained on synthetic data do not represent real-world accuracy. Predictions are for investigative prioritization only and require human verification. Do not interpret as claims of wrongdoing.
         </p>
       </div>
+
+      <ExtractionStatus
+        totalCandidates={entities.length + relationships.length}
+        unreviewedCandidates={pendingCount}
+        acceptedCandidates={[...entities, ...relationships].filter(x => x.verification_status === "ACCEPTED").length}
+        correctedCandidates={[...entities, ...relationships].filter(x => x.verification_status === "CORRECTED").length}
+        rejectedCandidates={[...entities, ...relationships].filter(x => x.verification_status === "REJECTED").length}
+        isComplete={entities.length + relationships.length > 0 && pendingCount === 0}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>

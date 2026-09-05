@@ -29,8 +29,8 @@ function EvidenceContent() {
           const ev = await api.getRelationshipEvidence(relId).catch(() => null);
           setEvidence(ev);
         }
-      } catch (err: any) {
-        setError(err.message || 'Failed to load case data.');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load case data.');
       } finally {
         setLoading(false);
       }
@@ -138,7 +138,7 @@ function EvidenceContent() {
                     <span className="text-xs font-mono text-emerald-400">{evidence.source_document_id}</span>
                   </div>
                   <p className="italic bg-slate-950 p-3 rounded border border-slate-700">
-                    "{evidence.evidence_text || 'Structured record extraction. No raw text snippet available.'}"
+                    &ldquo;{evidence.evidence_text || 'Structured record extraction. No raw text snippet available.'}&rdquo;
                   </p>
                 </div>
               </div>

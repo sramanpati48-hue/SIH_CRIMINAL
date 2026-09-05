@@ -29,7 +29,7 @@ export function PatternAlertCard({ alert, onReviewStatusChange }: PatternAlertCa
     }
     try {
       setIsSubmitting(true);
-      const res = await api.reviewAlert(alert.alert_id, action, rationale);
+      const res = (await api.reviewAlert(alert.alert_id, action, rationale)) as { new_status: string };
       onReviewStatusChange(alert.alert_id, res.new_status);
       setReviewAction(null);
       setRationale('');

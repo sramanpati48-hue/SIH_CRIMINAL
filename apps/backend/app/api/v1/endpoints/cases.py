@@ -15,6 +15,11 @@ from apps.backend.app.schemas.case import (
     CaseStatus,
     CaseUpdate,
 )
+from apps.backend.app.api.deps import get_current_active_user, require_role, require_case_access
+from apps.backend.app.models.user import User, Role
+from apps.backend.app.models.case_access import CaseAccess, CaseAccessLevel
+from apps.backend.app.models.case import Case
+from apps.backend.app.services.audit import log_action, CASE_CREATED, CASE_UPDATED
 
 router = APIRouter()
 
@@ -22,7 +27,6 @@ router = APIRouter()
 def _structured_error(
     status_code: int, code: str, message: str, path: str
 ) -> JSONResponse:
-    """Return a structured error response."""
     return JSONResponse(
         status_code=status_code,
         content={
@@ -45,11 +49,10 @@ def _structured_error(
 def create_case(
     data: CaseCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role([Role.INVESTIGATOR, Role.ADMINISTRATOR])),
 ) -> CaseResponse:
-    """Create a new case. Case numbers must be unique."""
+    """Create a new case. Assign MANAGE access to the creator."""
     repo = CaseRepository(db)
-
-    # Check for duplicate case number
     existing = repo.get_by_case_number(data.case_number)
     if existing is not None:
         raise HTTPException(
@@ -58,13 +61,40 @@ def create_case(
         )
 
     try:
-        case = repo.create(data)
+        # We inject created_by
+        case_data = data.model_dump()
+        case = Case(**case_data)
+        case.created_by = current_user.id
+        db.add(case)
+        db.flush()  # to get case.id
+
+        # Grant MANAGE access to the creator automatically if not an administrator
+        # (Though we can just grant it to everyone who creates it to be safe)
+        access = CaseAccess(
+            user_id=current_user.id,
+            case_id=case.id,
+            access_level=CaseAccessLevel.MANAGE.value,
+            assigned_by_user_id=current_user.id,
+            is_active=True
+        )
+        db.add(access)
+
+        log_action(
+            db=db,
+            action=CASE_CREATED,
+            target_type="CASE",
+            target_id=case.id,
+            user_id=current_user.id,
+        )
+
+        db.commit()
+        db.refresh(case)
         return CaseResponse.model_validate(case)
     except Exception as exc:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create case. Please check input and retry.",
+            detail="Failed to create case.",
         ) from exc
 
 
@@ -74,17 +104,28 @@ def create_case(
     summary="List investigation cases",
 )
 def list_cases(
-    skip: int = Query(default=0, ge=0, description="Number of records to skip"),
-    limit: int = Query(default=50, ge=1, le=200, description="Maximum records to return"),
-    status_filter: CaseStatus | None = Query(
-        default=None, alias="status", description="Filter by case status"
-    ),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+    status_filter: CaseStatus | None = Query(default=None, alias="status"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> CaseListResponse:
-    """List all cases with optional status filter and pagination."""
-    repo = CaseRepository(db)
+    """List cases. Administrators see all, others see assigned."""
     status_value = status_filter.value if status_filter else None
-    cases, total = repo.list_all(skip=skip, limit=limit, status=status_value)
+
+    query = db.query(Case)
+    if status_value:
+        query = query.filter(Case.status == status_value)
+
+    if current_user.role != Role.ADMINISTRATOR.value:
+        query = query.join(CaseAccess).filter(
+            CaseAccess.user_id == current_user.id,
+            CaseAccess.is_active == True
+        )
+
+    total = query.count()
+    cases = query.order_by(Case.created_at.desc()).offset(skip).limit(limit).all()
+
     return CaseListResponse(
         total=total,
         cases=[CaseResponse.model_validate(c) for c in cases],
@@ -99,15 +140,12 @@ def list_cases(
 def get_case(
     case_id: str,
     db: Session = Depends(get_db),
+    access: CaseAccess = Depends(require_case_access(CaseAccessLevel.VIEW)),
 ) -> CaseResponse:
-    """Retrieve a specific case by ID."""
     repo = CaseRepository(db)
     case = repo.get_by_id(case_id)
     if case is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Case '{case_id}' not found.",
-        )
+        raise HTTPException(status_code=404, detail="Case not found.")
     return CaseResponse.model_validate(case)
 
 
@@ -120,22 +158,32 @@ def update_case(
     case_id: str,
     data: CaseUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+    access: CaseAccess = Depends(require_case_access(CaseAccessLevel.MANAGE)),
 ) -> CaseResponse:
-    """Partially update a case. Only provided fields are changed."""
     repo = CaseRepository(db)
+    case = repo.get_by_id(case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found.")
+    
+    prev_state = {"status": case.status, "priority": case.priority, "title": case.title, "description": case.description}
 
     try:
         case = repo.update(case_id, data)
+        new_state = {"status": case.status, "priority": case.priority, "title": case.title, "description": case.description}
+        
+        log_action(
+            db=db,
+            action=CASE_UPDATED,
+            target_type="CASE",
+            target_id=case.id,
+            user_id=current_user.id,
+            previous_state=prev_state,
+            new_state=new_state
+        )
+        db.commit()
     except Exception as exc:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update case.",
-        ) from exc
+        raise HTTPException(status_code=500, detail="Failed to update case.") from exc
 
-    if case is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Case '{case_id}' not found.",
-        )
     return CaseResponse.model_validate(case)

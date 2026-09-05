@@ -133,9 +133,9 @@ export function NetworkGraph({ data }: NetworkGraphProps) {
             'font-size': 10,
             'color': '#cbd5e1',
             'text-rotation': 'autorotate',
-            'text-background-opacity': 1 as any,
+            'text-background-opacity': 1,
             'text-background-color': '#0f172a',
-            'text-background-padding': 2 as any
+            'text-background-padding': '2px'
           }
         },
         // Edge statuses
